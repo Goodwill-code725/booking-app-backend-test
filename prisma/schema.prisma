@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Bookingrq {
+  id              Int                @id @default(autoincrement())
+  firstname       String?
+  lastname        String?
+  checkin         DateTime?
+  checkout        DateTime?
+  amount          Int?
+  houseName       String?
+  phonenumber     String?            @db.VarChar(11)
+  roomType        String?            // New field for room type
+  roomNumber      Int?               // New field for room number
+
+  userId          Int?               // Foreign key to Login
+  user            Login?             @relation(fields: [userId], references: [id])
+  pictureUrls     String[]            
+
+  // Relation to Requestresponse (one-to-one)
+  requestResponse Requestresponse?   @relation("BookingRequestResponse")
+}
+
+
+
+model Requestresponse {
+  id          Int        @id @default(autoincrement())
+  firstname   String?
+  lastname    String?
+  checkin     DateTime?
+  checkout    DateTime?
+  amount      Int?
+  houseName   String?
+  phonenumber String?    @db.VarChar(11)
+  status      String?
+  roomType    String?
+  roomNumber  String?
+
+  pictureUrls String[] // Array of strings
+
+
+  userId      Int?       // Foreign key to Login
+  user        Login?     @relation(fields: [userId], references: [id])
+
+  // Relation to Bookingrq
+  bookingId   Int?       @unique // One-to-one requires @unique
+  booking     Bookingrq? @relation("BookingRequestResponse", fields: [bookingId], references: [id], onDelete: SetNull)
+}
+
+
+
+
+model Login {
+  id            Int                @id @default(autoincrement())
+  username      String             @unique
+  password      String
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  bookings      Bookingrq[]        // Relation to Bookingrq
+  requests      Requestresponse[]  // Back relation to Requestresponse
+  expoPushToken String?            // New field for storing Expo push token (nullable)
+}
+
+
+model AdminLogin {
+  id                Int                    @id @default(autoincrement())
+  username          String                 @unique
+  password          String
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  adminBookings     AdminBooking[]         // Relation to AdminBooking
+  
+}
+
+model RoomAvailability {
+  id          Int      @id @default(autoincrement())
+  roomNumber  String   // Store multiple room numbers as a comma-separated string 
+  status      String   // Store room status 
+  roomType    String   // Store the type of room 
+  location    String   // Store the location of the room
+  date        DateTime? // Optional field
+
+}
+
+
+model AdminBooking {
+  id           Int       @id @default(autoincrement())
+  firstname    String?
+  lastname     String?
+  checkin      DateTime?
+  checkout     DateTime?
+  amount       Int?
+  houseName    String?   // Optional house name
+  phonenumber  String?   @db.VarChar(11) // Set phone number to exactly 11 characters
+  roomType     String?   // Optional room type
+  roomNumber   String?
+  pictureUrl   String[]  // Array of URLs for uploaded pictures
+  adminId      Int       // Foreign key to AdminLogin
+  admin        AdminLogin @relation(fields: [adminId], references: [id])
+}
+
+
