@@ -6,22 +6,27 @@ import bcryptjs from 'bcryptjs';
 import path from 'path';
 import multer from 'multer';
 import nodemailer from 'nodemailer';
-
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 const app = express();
 const prisma = new PrismaClient();
 
-// Get the directory name of the current module (fix for ES module)
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Set up Multer storage
+const uploadDir = path.join(__dirname, 'imageUpload');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'imageUpload/'); // Directory where images will be saved
+    cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname)); 
+    cb(null, Date.now() + path.extname(file.originalname));
   },
 });
 
@@ -306,11 +311,13 @@ app.post('/mvcapp/userbooking/:houseType', upload.array('receiptImages', 10), as
     amount, 
     houseName, 
     userId, 
-    roomType, // Added roomType
-    roomNumber // Added roomNumber
+    roomType, 
+    roomNumber 
   } = req.body;
 
-  const pictureUrls = req.files.map(file => file.path); // Multer will store the file paths in req.files
+  const pictureUrls = req.files
+    ? req.files.map(file => file.path)
+    : []; // Multer will store the file paths in req.files
 
   try {
     // Create a new booking
@@ -539,8 +546,6 @@ app.post('/adminlogin', async (req, res) => {
 });
 
 //sample
-
-
 app.get('/mvcapp/userbooking/:id', async (req, res) => {
     const { id } = req.params;
     try {
