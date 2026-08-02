@@ -8,35 +8,54 @@ import multer from 'multer';
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-
+import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 dotenv.config();
 const app = express();
 const prisma = new PrismaClient();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const uploadDir = path.join(__dirname, 'imageUpload');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+//helper
+async function uploadToSupabase(file) {
+  const fileName = `${Date.now()}-${file.originalname}`;
+
+  const { data, error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(fileName, file.buffer, {
+      contentType: file.mimetype,
+    });
+
+  if (error) throw error;
+
+  const { data: publicUrlData } = supabase.storage
+    .from(BUCKET_NAME)
+    .getPublicUrl(fileName);
+
+  return publicUrlData.publicUrl;
 }
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY,
+  {
+    realtime: {
+      transport: ws,
+    },
+  }
+);
 
+const BUCKET_NAME = 'mvcapp-images'; // use your actual bucket name
 
-// Create the Multer instance
+// Multer now keeps files in memory instead of writing to disk
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 
-// Serve static files from the imageUpload directory
-app.use('/uploads', express.static('imageUpload'));
+
+
+
+
 
 app.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -315,9 +334,9 @@ app.post('/mvcapp/userbooking/:houseType', upload.array('receiptImages', 10), as
     roomNumber 
   } = req.body;
 
-  const pictureUrls = req.files
-    ? req.files.map(file => file.path)
-    : []; // Multer will store the file paths in req.files
+  const pictureUrls = req.files && req.files.length > 0
+    ? await Promise.all(req.files.map(file => uploadToSupabase(file)))
+    : [];
 
   try {
     // Create a new booking
@@ -457,7 +476,7 @@ app.post('/mvcapp/adminbooking/create', upload.array('receiptImages', 10), async
   }
 
   // Extract the file paths
-  const pictureUrls = req.files.map(file => file.path);
+  const pictureUrls = await Promise.all(req.files.map(file => uploadToSupabase(file)));
 
   try {
     // Create the booking
