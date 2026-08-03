@@ -10,7 +10,13 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
+
 dotenv.config();
+
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
+console.log('SUPABASE_SECRET_KEY:', process.env.SUPABASE_SECRET_KEY ? 'Loaded ✓' : 'MISSING ✗');
+
+
 const app = express();
 const prisma = new PrismaClient();
 const __filename = fileURLToPath(import.meta.url);
@@ -50,11 +56,6 @@ const BUCKET_NAME = 'mvcapp-images'; // use your actual bucket name
 // Multer now keeps files in memory instead of writing to disk
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
-
-
-
-
-
 
 
 app.use((req, res, next) => {
